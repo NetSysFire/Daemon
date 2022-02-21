@@ -1075,6 +1075,8 @@ static std::unordered_set<std::pair<std::string, std::string>, stdStringPairHash
 static std::unordered_map<std::string, std::pair<uint32_t, offset_t>> fileMap;
 
 #ifndef BUILD_VM
+// TODO(0.53): remove ifdef (make default)
+#if defined(ENABLE_FUTURE)
 /* Parse the deleted file list file of a package.
 
 Each line of the file is the pak basename a file must
@@ -1139,6 +1141,7 @@ static void ParseDeleted(const PakInfo& parent, Str::StringRef deletedData)
 		lineStart = lineEnd == deletedData.end() ? lineEnd : lineEnd + 1;
 	}
 }
+#endif
 
 // Parse the dependencies file of a package
 // Each line of the dependencies file is a name followed by an optional version
@@ -1224,8 +1227,8 @@ and listed in the DELETED file from unvanquished_0.52.2.dpk you cannot expect
 the file to be ignored, it is expected the user deletes the file for real in
 the parent pak. Making sure the DELETED file applies on files of the same pak
 would increase code complexity while packager can just delete the file, in
-some cases the file may be ignored (if DELETED file si read first) but you
-must not rely on it.
+some cases the file may be ignored (if DELETED file is read first) but you
+must not rely on it and not expect it.
 
 This feature means it's possible to only delete a file from a repository but
 also to move a file from a pak repository to another pak repository and not
@@ -1388,9 +1391,11 @@ static void InternalLoadPak(const PakInfo& pak, Util::optional<uint32_t> expecte
 			fsLogs.Warn("Pak checksum doesn't match filename: %s", pak.path);
 	}
 
-	// Load dependencies, but not if a checksum was specified
-	// Do not look for dependencies if it's a legacy pak (pk3)
-	if (!isLegacy && !expectedChecksum) {
+// TODO(0.53): remove ifdef (make default)
+#if defined(ENABLE_FUTURE)
+	// Load deleted file list
+	// Do not look for deleted file list if it's a legacy pak (pk3)
+	if (!isLegacy) {
 		if (hasDeleted) {
 			std::string deletedData;
 			if (pak.type == pakType_t::PAK_DIR) {
@@ -1417,7 +1422,12 @@ static void InternalLoadPak(const PakInfo& pak, Util::optional<uint32_t> expecte
 			}
 			ParseDeleted(pak, deletedData);
 		}
+	}
+#endif
 
+	// Load dependencies, but not if a checksum was specified
+	// Do not look for dependencies if it's a legacy pak (pk3)
+	if (!isLegacy && !expectedChecksum) {
 		if (hasDeps) {
 			std::string depsData;
 			if (pak.type == pakType_t::PAK_DIR) {
